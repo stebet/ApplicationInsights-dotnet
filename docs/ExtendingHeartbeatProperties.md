@@ -5,14 +5,13 @@ _This document was last updated 11/25/2016 and is applicable to SDK version 2.5.
 The .NET Application Insights SDKs provide a new feature called Heartbeat. This feature
 sends environment-specific information at pre-configured intervals. The feature will allow 
 you to extend the properties that will be sent every interval, and will also allow you to 
-set a flag denoting a healthy or unhealthy status for each property you add to the heartbeat 
-payload.
+indicate a healthy or unhealthy status for each interval of the heartbeat.
 
 ## A General Code Example ##
 
 In order to add the extended properties of your choice to the Heartbeat as a developer
 of an ITelemetryModule, you can follow the following pattern. Note that you must first add the
-properties you want to include in the payload, and you can update (via set) the vaules and health
+properties you want to include in the payload, and you can update (via set) the values and health
 status of those properties for the duration of the application life cycle.
 
 To add the payload properties, aquire the IHeartbeatPropertyManager module using the internal
@@ -78,21 +77,30 @@ configuration in doing so.
 You can also set values into the `ExcludedHeartbeatProperties` list if you find it pertinent to
 do so.  Setting values into the `ExcludedHeartbeatProperties` is fine, as your module may provide
 more detailed information about one of the many SDK-supplied default fields, and in these cases it
-is better  to remove the redundancy.
+is better to remove the redundancy.
 
-## A Working Example of Extending Properties ##
+## Working Examples of Extending Properties ##
 
-As of the writing of this document we have made the implementation of ITelemetryModule authors
-with a way to extend the content of the heartbeat payload. An example of this has been
-constructed in the Microsoft.ApplicationInsights.Web assembly, and can be reviewed here:
+We've added a few TelemetryModules that can serve as working examples of extending the properties
+sent with each heartbeat. These modules can be found in the [Web SDK repo][websdk-repo]. 
 
-https://github.com/Microsoft/ApplicationInsights-dotnet-server/tree/dekeeler/sample-heartbeat-extension
+The first example uses only the `AddHeartbeatProperty` at initialize time, and never updates
+the values stored for the heartbeat afterward. The [Azure Instance Metadata Telemetry module]
+[azureims-mod] extracts values from the [Azure Instance Metadata Service][azure-ims] upon
+initialization and if the service is accessible, they are added to the heartbeat properties for
+the duration of the process runtime.
 
-...specifically, you can see how we've provided extra properties to the heartbeat in the
-FileDiagnosticsTelemetryModule here:
+The second example is one that uses both the `AddHeartbeatProperty` and `SetHeartbeatProperty` 
+methods, as it can be updated at any time during the process runtime. In the [Azure App Services]
+[appsrv-mod] Telemetry module, the values stored in the environmnet are read upon initialization
+and then a monitor re-reads those environment variables looking for any changes. Any subscriber
+to this monitor will be notified if the environment variables change, and our [Azure App Services
+Telemetry Module][appsrv-mod] is one such subscriber. If the module is not initialized it will use
+`AddHeartbeatProperty` and after initialization, if the environment variables are updated, it will
+use `SetHeartbeatProperty` to update the values in the heartbeat's properties.
 
-https://github.com/Microsoft/ApplicationInsights-dotnet-server/blob/2089882ea10a32b88f8d4681eb4819f09a1471bd/Src/HostingStartup/HostingStartup.Net45/FileDiagnosticsTelemetryModule.cs#L134
 
-> **NOTE:** This 'working example' requires that the ApplicationInsights.Web solution is updated to
-the latest 'develop' nuget package for the base ApplicationInsights SDK.
-
+[websdk-repo]: https://github.com/Microsoft/ApplicationInsights-dotnet-server/
+[azureims-mod]: https://github.com/Microsoft/ApplicationInsights-dotnet-server/blob/develop/Src/WindowsServer/WindowsServer.Shared/AzureInstanceMetadataTelemetryModule.cs
+[appsrv-mod]: https://github.com/Microsoft/ApplicationInsights-dotnet-server/blob/develop/Src/WindowsServer/WindowsServer.Shared/AppServicesHeartbeatTelemetryModule.cs
+[azure-ims]: https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-metadata-service
